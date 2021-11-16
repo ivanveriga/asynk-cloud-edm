@@ -3,6 +3,7 @@ import os
 import concurrent.futures
 import json
 from datetime import datetime
+from time import sleep
 
 
 metadata = MetaData()
@@ -26,25 +27,23 @@ DOCUMENTS_TABLE = Table(
         Column('data', Text),
 )
 
-# DATABASE_ENGINE = create_engine()
+DATABASE_ENGINE = create_engine()
 metadata.create_all(DATABASE_ENGINE)
 
 FILE_NAMES = []
 
 
-def record_file(path):
-    global FILE_NAMES
-    global DATABASE_ENGINE, USERS_TABLE, DOCUMENTS_TABLE
-    
-    if os.path.exists(path):
+def record_file(file_path):
+    global FILE_NAMES # Need for access to privileges of changing object
 
-        with open(path, 'r') as f:
+    if os.path.exists(file_path):
+
+        with open(file_path, 'r') as f:
             json_text = json.loads(f.read())
 
-        os.remove(path) if os.path.exists(path) else ...
-
-        if path in FILE_NAMES:
-            del FILE_NAMES[FILE_NAMES.index(path)]
+        os.remove(file_path)
+        
+        FILE_NAMES.remove(file_path) # Not working without 'global', no access to change the object
 
         request = DATABASE_ENGINE.execute(USERS_TABLE.select().where(USERS_TABLE.c.login == json_text['login'])).fetchone()
 
@@ -74,8 +73,8 @@ def record_file(path):
 with concurrent.futures.ThreadPoolExecutor() as executor:
     while True:
         for i in os.listdir():
-            if (os.path.isfile(i) and 
-                    not i == os.path.basename(__file__) and
-                    not i in FILE_NAMES):
+            if os.path.isfile(i) and (i != os.path.basename(__file__)) and (i not in FILE_NAMES):
                 executor.submit(record_file, i)
                 FILE_NAMES.append(i)
+
+        sleep(0.001)
